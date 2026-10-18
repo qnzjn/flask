@@ -2,31 +2,131 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cloudtype - Flask</title>
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.3/dist/full.css" rel="stylesheet" type="text/css" />
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css" rel="stylesheet" type="text/css" />
+  <title>정부·공공기관 추천피드</title>
+  <meta name="description" content="정부 정책, 지원금, 지자체 공지, 축제, 채용, 청약, 교육, 건강 관련글을 최신순으로 모았습니다.">
   <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='gov-feed.css') }}">
 </head>
 <body>
-<div class="hero min-h-screen bg-base-200">
-  <div class="hero-content flex-col lg:flex-row-reverse">
-    <img src="{{ url_for('static', filename='img/flask.webp') }}" class="w-36 rounded-lg md:ml-5 lg:ml-5"  alt="flask"/>
-    <div>
-      <h1 class="text-5xl font-bold">Flask</h1>
-      <p class="py-6">클라우드타입에서 배포한 Flask 어플리케이션입니다.</p>
-      <button type="button" onclick="window.open('https://github.com/cloudtype-examples/java-springboot')" class="btn btn-outline rounded">
-        GitHub
-      </button>
-      <button type="button" onclick="window.open('https://docs.cloudtype.io/')" class="btn btn-outline rounded">
-        Docs
-      </button>
-      <button type="button" onclick="window.open('https://discord.gg/U7HX4BA6hu')" class="btn btn-outline rounded">
-        Discord
-      </button>
+  <main class="wrap">
+    <header class="top">
+      <div>
+        <p class="brand">NEXA 추천피드</p>
+        <h1>정부·공공기관 추천피드</h1>
+        <p class="lead">지원제도, 복지, 지자체 공지, 채용, 청약, 건강 정보를 최신 관련글로 모았습니다.</p>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="추천 주제">
+      <button type="button" class="tab is-on" data-cat="all" role="tab" aria-selected="true">전체</button>
+      {% for section in feed.sections %}
+      <button type="button" class="tab" data-cat="{{ section.id }}" role="tab" aria-selected="false">{{ section.name }}</button>
+      {% endfor %}
     </div>
-  </div>
-</div>
+
+    <div id="feed">
+      {% for section in feed.sections %}
+      <section class="section" data-section="{{ section.id }}">
+        <div class="sec-head">
+          <div>
+            <h2>{{ section.name }}</h2>
+            <p>{{ section.desc }} · 관련글 · 최신순</p>
+          </div>
+        </div>
+        {% if section["items"] %}
+        <div class="grid">
+          {% for item in section["items"][:4] %}
+          <a class="card" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">
+            {% if item.img %}
+            <div class="thumb" style="background-image:url('{{ item.img }}')"></div>
+            {% else %}
+            <div class="thumb empty" style="--tone: {{ item.color }}"></div>
+            {% endif %}
+            <div class="body">
+              <div class="meta">
+                <span class="chip" style="--tone: {{ item.color }}">{{ item.catName }}</span>
+                <span class="kind">관련글</span>
+                <span>{{ item.when }}</span>
+              </div>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.desc }}</p>
+              <div class="meta"><span>{{ item.source }}</span></div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">이 주제의 최신 관련글을 아직 가져오지 못했습니다.</div>
+        {% endif %}
+      </section>
+      {% endfor %}
+    </div>
+  </main>
+  <script id="feed-data" type="application/json">{{ feed|tojson }}</script>
+  <script>
+    const feed = JSON.parse(document.getElementById("feed-data").textContent);
+    const root = document.getElementById("feed");
+    const tabs = [...document.querySelectorAll(".tab")];
+
+    function card(item) {
+      const safeUrl = /^https?:\/\//.test(item.url) ? item.url : "#";
+      const thumb = item.img && /^https?:\/\//.test(item.img)
+        ? `<div class="thumb" style="background-image:url('${encodeURI(item.img).replace(/'/g, "%27")}')"></div>`
+        : `<div class="thumb empty" style="--tone:${item.color}"></div>`;
+      return `<a class="card" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">
+        ${thumb}
+        <div class="body">
+          <div class="meta">
+            <span class="chip" style="--tone:${item.color}">${item.catName}</span>
+            <span class="kind">관련글</span>
+            <span>${item.when || ""}</span>
+          </div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.desc || "")}</p>
+          <div class="meta"><span>${escapeHtml(item.source || "")}</span></div>
+        </div>
+      </a>`;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+
+    function sectionBlock(section, items) {
+      const body = items.length
+        ? `<div class="grid">${items.map(card).join("")}</div>`
+        : `<div class="empty">이 주제의 최신 관련글을 아직 가져오지 못했습니다.</div>`;
+      return `<section class="section" data-section="${section.id}">
+        <div class="sec-head"><div>
+          <h2>${section.name}</h2>
+          <p>${section.desc} · 관련글 · 최신순</p>
+        </div></div>
+        ${body}
+      </section>`;
+    }
+
+    function render(cat) {
+      if (cat === "all") {
+        root.innerHTML = feed.sections.map((section) => sectionBlock(section, section.items.slice(0, 4))).join("");
+        return;
+      }
+      const section = feed.sections.find((item) => item.id === cat);
+      root.innerHTML = section ? sectionBlock(section, section.items) : "";
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((btn) => {
+          const on = btn === tab;
+          btn.classList.toggle("is-on", on);
+          btn.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        render(tab.dataset.cat);
+      });
+    });
+  </script>
 </body>
 </html>
